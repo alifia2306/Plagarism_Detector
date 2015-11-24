@@ -1,13 +1,16 @@
 package edu.upenn.cis573.plagiarism;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.TreeMap;
 
 /*
  * This class implements a simple plagiarism detection algorithm.
@@ -21,10 +24,13 @@ import java.util.Set;
 public class PlagiarismDetector {
 	
 	private String dirName; // the name of the directory containing the corpus
-	
+	HashMap<String,Set<String>> phraseMap;
 	public PlagiarismDetector(String name) {
 		dirName = name;
+		phraseMap =  new HashMap<String, Set<String>>();
 	}
+	
+	 
 	
 	
 	/*
@@ -65,13 +71,13 @@ public class PlagiarismDetector {
 		Set<String> phrases = new HashSet<String>();
 		
 		for (int i = 0; i < words.size() - window + 1; i++) {
-			StringBuilder phrase = new StringBuilder();
+			String phrase = "";
 			for (int j = 0; j < window; j++) {
-				phrase.append(words.get(i+j) + " ");
+				phrase += words.get(i+j) + " ";
 			}
 
 			if (phrases.contains(phrase) == false) 
-				phrases.add(phrase.toString());
+				phrases.add(phrase);
 
 		}
 		
@@ -90,16 +96,42 @@ public class PlagiarismDetector {
 		File dirFile = new File(dirName);
 		String[] files = dirFile.list();
 		
-		Map<String, Integer> numberOfMatches = new HashMap<String, Integer>();
+		Map<Integer, ArrayList<String>> numberOfMatches = new TreeMap<Integer, ArrayList<String>>();
+		Map<String, Integer> matchesList = new HashMap<String, Integer>();
 		
 		for (int i = 0; i < files.length; i++) {
 			String file1 = files[i];
 
 			for (int j = 0; j < files.length; j++) { 
+				
+//				if(i == j){
+//					continue;
+//				}
+				
 				String file2 = files[j];
-
-				Set<String> file1Phrases = createPhrases(dirName + "/" + file1, windowSize); 
-				Set<String> file2Phrases = createPhrases(dirName + "/" + file2, windowSize); 
+				
+//				if (numberOfMatches.containsKey(file2 + "-" + file1) || numberOfMatches.containsKey(file1 + "-" + file2)) {
+//					continue;
+//				}
+				
+				Set<String> file1Phrases = createPhrases(dirName + "/" + file1, windowSize); ; 
+				Set<String> file2Phrases = createPhrases(dirName + "/" + file2, windowSize); ; 
+//				if(phraseMap.containsKey(file1)){
+//					file1Phrases = phraseMap.get(file1);
+//				}
+//				else{
+//					file1Phrases = createPhrases(dirName + "/" + file1, windowSize); 
+//					phraseMap.put(file1, file1Phrases);
+//				}
+//				
+//				if(phraseMap.containsKey(file2)){
+//					file2Phrases = phraseMap.get(file2);
+//				}
+//				else{
+//					file2Phrases = createPhrases(dirName + "/" + file2, windowSize); 
+//					phraseMap.put(file2, file2Phrases);
+//				}
+				 
 				
 				if (file1Phrases == null || file2Phrases == null)
 					return null;
@@ -111,8 +143,16 @@ public class PlagiarismDetector {
 								
 				if (matches.size() > threshold) {
 					String key = file1 + "-" + file2;
-					if (numberOfMatches.containsKey(file2 + "-" + file1) == false && file1.equals(file2) == false) {
-						numberOfMatches.put(key,matches.size());
+					if (matchesList.containsKey(file2 + "-" + file1) == false && file1.equals(file2) == false) {
+						if(numberOfMatches.containsKey(matches.size())){
+							numberOfMatches.get(matches.size()).add(key);
+						}
+						else{
+							ArrayList<String> list = new ArrayList<String>();
+							list.add(key);
+							numberOfMatches.put(matches.size(),list);
+						}
+						matchesList.put(key, matches.size());
 					}
 				}				
 			}
@@ -147,34 +187,41 @@ public class PlagiarismDetector {
 	 * Returns a LinkedHashMap in which the elements of the Map parameter
 	 * are sorted according to the value of the Integer, in non-ascending order.
 	 */
-	public LinkedHashMap<String, Integer> sortResults(Map<String, Integer> possibleMatches) {
+	public LinkedHashMap<String, Integer> sortResults(Map<Integer, ArrayList<String>> possibleMatches) {
 		
 		// Because this approach modifies the Map as a side effect of printing 
 		// the results, it is necessary to make a copy of the original Map
-		Map<String, Integer> copy = new HashMap<String, Integer>();
-
-		for (String key : possibleMatches.keySet()) {
-			copy.put(key, possibleMatches.get(key));
-		}	
-		
+		Map<String, Integer> copy = new TreeMap<String, Integer>();
 		LinkedHashMap<String, Integer> list = new LinkedHashMap<String, Integer>();
-
-		for (int i = 0; i < copy.size(); i++) {
-			int maxValue = 0;
-			String maxKey = null;
-			for (String key : copy.keySet()) {
-				if (copy.get(key) > maxValue) {
-					maxValue = copy.get(key);
-					maxKey = key;
-				}
-			}
-			
-			list.put(maxKey, maxValue);
-			
-			if (copy.containsKey(maxKey)) {
-				copy.put(maxKey, -1);
+		for(Entry<Integer, ArrayList<String>> entry : possibleMatches.entrySet()) {
+			int maxValue = entry.getKey();
+			List<String> maxKeyList = entry.getValue();
+			for(String s: maxKeyList){
+				list.put(s, maxValue);
 			}
 		}
+//		for (String key : possibleMatches.keySet()) {
+//			copy.put(key, possibleMatches.get(key));
+//		}	
+//		
+		
+//
+//		for (int i = 0; i < copy.size(); i++) {
+//			int maxValue = 0;
+//			String maxKey = null;
+//			for (String key : copy.keySet()) {
+//				if (copy.get(key) > maxValue) {
+//					maxValue = copy.get(key);
+//					maxKey = key;
+//				}
+//			}
+//			
+//			list.put(maxKey, maxValue);
+//			
+//			if (copy.containsKey(maxKey)) {
+//				copy.put(maxKey, -1);
+//			}
+//		}
 		
 		return list;
 	}
